@@ -1,0 +1,44 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# Streamlit cache
+.streamlit/
+
+# Environment variables & secrets
+.env
+firebase_config.json
+digest.txt
+
+# Node.js dependencies (if frontend assets are used)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# VS Code settings
+.vscode/
+
+# Pyrebase/Firebase tokens (if any)
+firebase_client.py
+
+# Other generated files
+*.sqlite3
