@@ -9,21 +9,10 @@ from firebase_admin import auth
 from firebase_admin.exceptions import FirebaseError
 import google.generativeai as genai
 
-# app.py
-import streamlit as st
-from datetime import datetime
-import json
-import os
-from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import auth
-from firebase_admin.exceptions import FirebaseError
-import google.generativeai as genai
-
-# load .env
+# Load environment variables
 load_dotenv()
 
-# import our centralized DB helper
+# Import our centralized DB helper
 from utils.db import get_db, initialize_firebase
 
 # Configure Gemini if provided
@@ -34,18 +23,15 @@ def initialize_gemini():
             st.warning("GEMINI_API_KEY not set. AI features will be disabled.")
             return None
         genai.configure(api_key=api_key)
-        # Updated model name to the current correct one
-        return genai.GenerativeModel('gemini-1.0-pro')
+        # Using Gemini 1.5 Flash model
+        return genai.GenerativeModel('gemini-1.5-flash')
     except Exception as e:
         st.error(f"Gemini initialization failed: {e}")
         return None
 
-# [Rest of the file remains exactly the same...]
-
-# Use Admin SDK auth; ensure initialization when calling auth methods
+# Firebase authentication functions
 def firebase_register(email, password, user_data):
     try:
-        # Ensure firebase admin is initialized
         db = get_db()
         if db is None:
             st.error("Firebase Admin SDK is not initialized. Can't create user.")
@@ -57,7 +43,6 @@ def firebase_register(email, password, user_data):
             display_name=user_data.get('name', 'Athlete')
         )
 
-        # provide default fields
         user_data.setdefault('name', 'Athlete')
         user_data.setdefault('created_at', datetime.now().isoformat())
         return user.uid
@@ -87,20 +72,58 @@ def firebase_get_user_by_email(email):
         st.error(f"🚨 Login failed: {str(e)}")
     return None
 
-# AI helpers
+# AI helper functions
 def generate_training_plan(model, user_profile, duration=4):
     try:
         if not model:
             raise ValueError("AI model not initialized")
+        
         prompt = f"""
 Generate a detailed {duration}-week training plan in JSON format for:
 Sport: {user_profile.get('sport', 'general fitness')}
 Level: {user_profile.get('experience', 'beginner')}
 Goals: {user_profile.get('goals', 'improve fitness')}
 Available Equipment: {', '.join(user_profile.get('equipment', ['None']))}
-"""
+
+IMPORTANT: Return ONLY valid JSON with this structure:
+{{
+  "trainingPlan": {{
+    "sport": "string",
+    "level": "string",
+    "goals": "string",
+    "equipment": "string",
+    "weeks": [
+      {{
+        "weekNumber": 1,
+        "focus": "string",
+        "days": [
+          {{
+            "day": "string",
+            "workout": "string",
+            "details": "string"  // optional additional details
+          }}
+        ]
+      }}
+    ]
+  }}
+}}"""
+        
         response = model.generate_content(prompt)
-        return response.text if response and getattr(response, "text", None) else None
+        if not response or not getattr(response, "text", None):
+            return None
+            
+        # Clean the response text to ensure valid JSON
+        response_text = response.text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:-3].strip()
+        elif response_text.startswith("```"):
+            response_text = response_text[3:-3].strip()
+            
+        return json.loads(response_text)
+        
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse the generated plan. Raw response: {response_text}")
+        return None
     except Exception as e:
         st.error(f"AI error: {e}")
         return None
@@ -116,12 +139,12 @@ def chat_with_coach(model, user_profile, chat_history, message):
         st.error(f"AI error: {e}")
         return "I'm having trouble responding right now. Please try again later."
 
-# UI & Main
+# Main application
 def main():
     st.set_page_config(page_title="MiniGPT Coach", page_icon="🏋️", layout="wide")
     st.title("🏋️ MiniGPT Coach")
 
-    # Ensure Firebase init (this will show helpful errors if not configured)
+    # Initialize Firebase
     db = get_db()
     if db is None:
         st.warning(
@@ -132,13 +155,13 @@ def main():
 
     gemini_model = initialize_gemini()
 
-    # session state
+    # Initialize session state
     st.session_state.setdefault('user', None)
     st.session_state.setdefault('profile', None)
     st.session_state.setdefault('chat_history', [])
     st.session_state.setdefault('generated_plan', None)
 
-    # Authentication
+    # Authentication section
     if not st.session_state.user:
         login_tab, register_tab = st.tabs(["🔐 Login", "📝 Register"])
 
@@ -155,7 +178,6 @@ def main():
                         with st.spinner("Authenticating..."):
                             user_id = firebase_get_user_by_email(email)
                             if user_id:
-                                # fetch profile
                                 try:
                                     doc = db.collection('users').document(user_id).get()
                                     profile = doc.to_dict() if doc.exists else {'name': 'Athlete'}
@@ -178,9 +200,9 @@ def main():
             with col2:
                 name = st.text_input("Full Name", key="reg_name")
                 sport = st.selectbox("Primary Sport",
-                                     ["General Fitness", "Running", "Cycling", "Swimming",
-                                      "Weight Training", "Yoga", "Other"],
-                                     key="reg_sport")
+                                   ["General Fitness", "Running", "Cycling", "Swimming",
+                                    "Weight Training", "Yoga", "Other"],
+                                   key="reg_sport")
             if st.button("Create Account", key="reg_btn"):
                 if not all([email, password, confirm, name]):
                     st.warning("Please fill all required fields")
@@ -204,7 +226,7 @@ def main():
                                     st.error(f"Failed to store user profile: {e}")
 
     else:
-        # Sidebar & app areas (same behavior as before but guarded by db checks)
+        # Main application after login
         with st.sidebar:
             st.title(f"👋 {st.session_state.profile.get('name', 'Athlete')}")
             st.caption(f"Sport: {st.session_state.profile.get('sport', 'General Fitness')}")
@@ -225,17 +247,18 @@ def main():
                     weight = st.number_input("Weight (kg)", min_value=30, max_value=300, value=st.session_state.profile.get('weight', 70))
                 with col2:
                     sport = st.selectbox("Primary Sport",
-                                         ["General Fitness", "Running", "Cycling", "Swimming",
-                                          "Weight Training", "Yoga", "Other"],
-                                         index=["General Fitness","Running","Cycling","Swimming","Weight Training","Yoga","Other"]
-                                         .index(st.session_state.profile.get('sport','General Fitness')))
+                                       ["General Fitness", "Running", "Cycling", "Swimming",
+                                        "Weight Training", "Yoga", "Other"],
+                                       index=["General Fitness","Running","Cycling","Swimming","Weight Training","Yoga","Other"]
+                                       .index(st.session_state.profile.get('sport','General Fitness')))
                     experience = st.selectbox("Experience Level", ["Beginner","Intermediate","Advanced","Professional"],
-                                              index=["Beginner","Intermediate","Advanced","Professional"]
-                                              .index(st.session_state.profile.get('experience','Beginner')))
+                                            index=["Beginner","Intermediate","Advanced","Professional"]
+                                            .index(st.session_state.profile.get('experience','Beginner')))
                     goals = st.text_area("Your Goals", value=st.session_state.profile.get('goals',''))
                     injuries = st.text_area("Injuries/Limitations", value=st.session_state.profile.get('injuries',''))
                 available_days = st.slider("Days available per week", 1, 7, st.session_state.profile.get('available_days', 3))
-                equipment = st.multiselect("Available Equipment", ["Gym Access", "Dumbbells", "Resistance Bands", "Yoga Mat", "Treadmill", "None"], default=st.session_state.profile.get('equipment', []))
+                equipment = st.multiselect("Available Equipment", ["Gym Access", "Dumbbells", "Resistance Bands", "Yoga Mat", "Treadmill", "None"], 
+                                          default=st.session_state.profile.get('equipment', []))
                 if st.form_submit_button("💾 Save Profile"):
                     updated_profile = {
                         **st.session_state.profile,
@@ -259,51 +282,75 @@ def main():
             if not st.session_state.profile.get('age'):
                 st.warning("Please complete your profile for personalized plans")
                 st.stop()
+            
             with st.expander("⚙️ Plan Settings"):
                 col1, col2 = st.columns(2)
                 with col1:
                     duration = st.slider("Plan Duration (weeks)", 1, 12, 4)
                 with col2:
                     focus = st.selectbox("Primary Focus", ["Strength", "Endurance", "Weight Loss", "Muscle Gain", "Skill Development"])
+            
             if st.button("✨ Generate New Plan"):
                 with st.spinner("Creating your personalized plan..."):
-                    plan_text = generate_training_plan(gemini_model, st.session_state.profile, duration)
-                    if plan_text:
+                    plan_data = generate_training_plan(gemini_model, st.session_state.profile, duration)
+                    if plan_data:
                         try:
-                            plan_json = json.loads(plan_text)
-                            st.session_state.generated_plan = plan_json
-                            # Save to DB if available
+                            st.session_state.generated_plan = plan_data
                             if db:
                                 db.collection('plans').document(st.session_state.user).collection('training_plans').add({
-                                    "plan": plan_json, "created_at": datetime.now().isoformat(), "duration": duration, "focus": focus
+                                    "plan": plan_data,
+                                    "created_at": datetime.now().isoformat(),
+                                    "duration": duration,
+                                    "focus": focus
                                 })
                             st.success("Plan generated successfully!")
-                        except json.JSONDecodeError:
-                            st.error("Failed to parse the generated plan")
-                            st.text(plan_text)
+                        except Exception as e:
+                            st.error(f"Failed to save plan: {e}")
+            
             if st.session_state.generated_plan:
                 st.subheader("Your Current Plan")
-                st.json(st.session_state.generated_plan)
-                st.download_button("📥 Download Plan", data=json.dumps(st.session_state.generated_plan, indent=2), file_name=f"training_plan_{datetime.now().date()}.json", mime="application/json")
+                plan = st.session_state.generated_plan.get('trainingPlan', {})
+                
+                st.write(f"**Sport:** {plan.get('sport', 'N/A')}")
+                st.write(f"**Level:** {plan.get('level', 'N/A')}")
+                st.write(f"**Goals:** {plan.get('goals', 'N/A')}")
+                st.write(f"**Equipment:** {plan.get('equipment', 'N/A')}")
+                
+                for week in plan.get('weeks', []):
+                    with st.expander(f"Week {week.get('weekNumber')} - {week.get('focus')}"):
+                        for day in week.get('days', []):
+                            st.write(f"**{day.get('day')}:** {day.get('workout')}")
+                            if day.get('details'):
+                                st.caption(day.get('details'))
+                
+                st.download_button(
+                    "📥 Download Plan",
+                    data=json.dumps(st.session_state.generated_plan, indent=2),
+                    file_name=f"training_plan_{datetime.now().date()}.json",
+                    mime="application/json"
+                )
 
         elif app_mode == "💬 AI Coach":
             st.header("AI Coach Chat")
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
+            
             if prompt := st.chat_input("Ask your coach anything..."):
                 st.session_state.chat_history.append({"role":"user","content":prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
+                
                 with st.spinner("Thinking..."):
                     response = chat_with_coach(gemini_model, st.session_state.profile, st.session_state.chat_history, prompt)
                     if response:
                         st.session_state.chat_history.append({"role":"assistant","content":response})
-                        # Save chat if DB available
                         if db:
                             try:
                                 db.collection('chats').document(st.session_state.user).collection('messages').add({
-                                    "message": prompt, "response": response, "timestamp": datetime.now().isoformat()
+                                    "message": prompt, 
+                                    "response": response, 
+                                    "timestamp": datetime.now().isoformat()
                                 })
                             except Exception as e:
                                 st.warning(f"Failed to persist chat: {e}")

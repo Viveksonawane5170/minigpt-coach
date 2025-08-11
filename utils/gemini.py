@@ -10,7 +10,8 @@ def get_gemini_model():
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set in environment variables")
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel('gemini-1.0-pro')
+    # Updated to use Gemini 1.5 Flash model
+    return genai.GenerativeModel('gemini-1.5-flash')
 
 def generate_training_plan(user_profile):
     try:
