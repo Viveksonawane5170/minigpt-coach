@@ -72,37 +72,92 @@ def firebase_get_user_by_email(email):
         st.error(f"🚨 Login failed: {str(e)}")
     return None
 
-# AI helper functions
+# Enhanced AI helper functions with technical details
 def generate_training_plan(model, user_profile, duration=4):
     try:
         if not model:
             raise ValueError("AI model not initialized")
         
+        # Precompute variables for cleaner f-string
+        sport = user_profile.get('sport', 'general fitness')
+        experience = user_profile.get('experience', 'beginner')
+        goals = user_profile.get('goals', 'improve fitness')
+        equipment_list = user_profile.get('equipment', ['None'])
+        equipment_str = ', '.join(equipment_list)
+        injuries = user_profile.get('injuries', 'None')
+
         prompt = f"""
 Generate a detailed {duration}-week training plan in JSON format for:
-Sport: {user_profile.get('sport', 'general fitness')}
-Level: {user_profile.get('experience', 'beginner')}
-Goals: {user_profile.get('goals', 'improve fitness')}
-Available Equipment: {', '.join(user_profile.get('equipment', ['None']))}
+Sport: {sport}
+Level: {experience}
+Goals: {goals}
+Available Equipment: {equipment_str}
+Injuries/Limitations: {injuries}
 
-IMPORTANT: Return ONLY valid JSON with this structure:
+Include these technical elements:
+- Periodization strategy
+- Exercise progressions
+- Sport-specific skill drills
+- Recovery protocols
+- Performance metrics tracking
+- Biomechanical cues for key exercises
+
+IMPORTANT: 
+1. Return ONLY valid JSON with the specified structure
+2. DO NOT include any additional text before or after the JSON
+3. Complete all weeks specified in the duration
+4. Use double quotes for all JSON properties and values
+
+JSON Structure:
 {{
   "trainingPlan": {{
     "sport": "string",
     "level": "string",
     "goals": "string",
     "equipment": "string",
+    "periodization": "string (e.g., linear, undulating)",
+    "technicalFocus": "string (sport-specific skills focus)",
     "weeks": [
       {{
         "weekNumber": 1,
+        "phase": "string (e.g., base, build, peak)",
         "focus": "string",
         "days": [
           {{
             "day": "string",
-            "workout": "string",
-            "details": "string"  // optional additional details
+            "workoutType": "string",
+            "primaryExercises": [
+              {{
+                "name": "string",
+                "sets": "number",
+                "reps": "string",
+                "intensity": "string",
+                "technicalCues": "string (biomechanical tips)",
+                "progression": "string (how to advance)"
+              }}
+            ],
+            "skillDrills": [
+              {{
+                "name": "string",
+                "duration": "string",
+                "coachingPoints": "string (technical execution)"
+              }}
+            ],
+            "recoveryProtocol": "string"
+          }}
+        ],
+        "performanceMetrics": [
+          {{
+            "metric": "string",
+            "target": "string"
           }}
         ]
+      }}
+    ],
+    "technicalReference": [
+      {{
+        "topic": "string (e.g., biomechanics, tactics)",
+        "keyPoints": ["string"]
       }}
     ]
   }}
@@ -114,16 +169,42 @@ IMPORTANT: Return ONLY valid JSON with this structure:
             
         # Clean the response text to ensure valid JSON
         response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:-3].strip()
-        elif response_text.startswith("```"):
-            response_text = response_text[3:-3].strip()
-            
-        return json.loads(response_text)
         
-    except json.JSONDecodeError as e:
-        st.error(f"Failed to parse the generated plan. Raw response: {response_text}")
-        return None
+        # Enhanced cleaning logic
+        if "```json" in response_text:
+            # Extract content between ```json and ```
+            start = response_text.find("```json") + len("```json")
+            end = response_text.rfind("```")
+            response_text = response_text[start:end].strip()
+        elif "```" in response_text:
+            # Extract content between first and last ```
+            start = response_text.find("```") + len("```")
+            end = response_text.rfind("```")
+            response_text = response_text[start:end].strip()
+        
+        # Handle trailing text after JSON
+        json_start = response_text.find('{')
+        json_end = response_text.rfind('}') + 1
+        
+        if json_start != -1 and json_end != -1:
+            response_text = response_text[json_start:json_end]
+        
+        # Robust parsing that handles trailing text
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError:
+            # Find the last valid closing brace
+            last_valid_brace = response_text.rfind('}')
+            if last_valid_brace != -1:
+                try:
+                    return json.loads(response_text[:last_valid_brace+1])
+                except json.JSONDecodeError as e:
+                    st.error(f"JSON parsing failed after cleanup: {e}")
+                    return None
+            else:
+                st.error("No valid JSON structure found in response")
+                return None
+        
     except Exception as e:
         st.error(f"AI error: {e}")
         return None
@@ -132,7 +213,20 @@ def chat_with_coach(model, user_profile, chat_history, message):
     try:
         if not model:
             raise ValueError("AI model not initialized")
-        context = f"You're a professional coach. Profile: {user_profile}\nHistory: {chat_history[-3:] if chat_history else 'None'}"
+        
+        # Enhanced context with technical coaching requirements
+        context = (
+            f"You're a professional {user_profile.get('sport', 'fitness')} coach with expertise in biomechanics and "
+            f"performance optimization. Provide detailed technical advice including:\n"
+            f"- Sport-specific technique breakdowns\n"
+            f"- Biomechanical analysis\n"
+            f"- Periodization strategies\n"
+            f"- Equipment optimization tips\n"
+            f"- Scientific references when appropriate\n\n"
+            f"Athlete Profile:\n{json.dumps(user_profile, indent=2)}\n\n"
+            f"Conversation History:\n{json.dumps(chat_history[-3:], indent=2) if chat_history else 'None'}"
+        )
+        
         response = model.generate_content([context, message])
         return response.text if response and getattr(response, "text", None) else "AI error"
     except Exception as e:
@@ -311,17 +405,60 @@ def main():
                 st.subheader("Your Current Plan")
                 plan = st.session_state.generated_plan.get('trainingPlan', {})
                 
-                st.write(f"**Sport:** {plan.get('sport', 'N/A')}")
-                st.write(f"**Level:** {plan.get('level', 'N/A')}")
-                st.write(f"**Goals:** {plan.get('goals', 'N/A')}")
-                st.write(f"**Equipment:** {plan.get('equipment', 'N/A')}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Sport:** {plan.get('sport', 'N/A')}")
+                    st.write(f"**Level:** {plan.get('level', 'N/A')}")
+                    st.write(f"**Goals:** {plan.get('goals', 'N/A')}")
+                with col2:
+                    st.write(f"**Equipment:** {plan.get('equipment', 'N/A')}")
+                    st.write(f"**Periodization:** {plan.get('periodization', 'N/A')}")
+                    st.write(f"**Technical Focus:** {plan.get('technicalFocus', 'N/A')}")
+                
+                st.divider()
+                st.subheader("Training Structure")
                 
                 for week in plan.get('weeks', []):
-                    with st.expander(f"Week {week.get('weekNumber')} - {week.get('focus')}"):
+                    with st.expander(f"📆 Week {week.get('weekNumber')} - {week.get('phase')} Phase: {week.get('focus')}"):
+                        st.write(f"**Performance Metrics:**")
+                        for metric in week.get('performanceMetrics', []):
+                            st.write(f"- {metric.get('metric', 'N/A')}: {metric.get('target', 'N/A')}")
+                        
+                        st.divider()
                         for day in week.get('days', []):
-                            st.write(f"**{day.get('day')}:** {day.get('workout')}")
-                            if day.get('details'):
-                                st.caption(day.get('details'))
+                            st.subheader(f"🗓️ {day.get('day')}")
+                            st.write(f"**Workout Type:** {day.get('workoutType', 'N/A')}")
+                            
+                            col_ex, col_drills = st.columns(2)
+                            
+                            with col_ex:
+                                st.write("💪 **Primary Exercises:**")
+                                for exercise in day.get('primaryExercises', []):
+                                    st.write(f"#### {exercise.get('name', 'Exercise')}")
+                                    st.write(f"- Sets: {exercise.get('sets', 'N/A')}")
+                                    st.write(f"- Reps: {exercise.get('reps', 'N/A')}")
+                                    st.write(f"- Intensity: {exercise.get('intensity', 'N/A')}")
+                                    st.write(f"📝 *Technical Cues:* {exercise.get('technicalCues', 'N/A')}")
+                                    st.write(f"📈 *Progression:* {exercise.get('progression', 'N/A')}")
+                                    st.divider()
+                            
+                            with col_drills:
+                                st.write("🏃 **Skill Drills:**")
+                                for drill in day.get('skillDrills', []):
+                                    st.write(f"#### {drill.get('name', 'Drill')}")
+                                    st.write(f"- Duration: {drill.get('duration', 'N/A')}")
+                                    st.write(f"📝 *Coaching Points:* {drill.get('coachingPoints', 'N/A')}")
+                                    st.divider()
+                            
+                            st.write(f"🧘 **Recovery Protocol:** {day.get('recoveryProtocol', 'N/A')}")
+                            st.divider()
+                
+                st.divider()
+                st.subheader("Technical Reference Guide")
+                for ref in plan.get('technicalReference', []):
+                    with st.expander(f"📚 {ref.get('topic', 'Technical Topic')}"):
+                        for point in ref.get('keyPoints', []):
+                            st.write(f"- {point}")
                 
                 st.download_button(
                     "📥 Download Plan",
@@ -332,16 +469,25 @@ def main():
 
         elif app_mode == "💬 AI Coach":
             st.header("AI Coach Chat")
-            for message in st.session_state.chat_history:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+            st.caption("Ask about technique, periodization, biomechanics, or equipment optimization")
             
+            # Display chat history
+            for message in st.session_state.chat_history:
+                if message["role"] == "user":
+                    with st.chat_message("user"):
+                        st.markdown(message["content"])
+                else:
+                    with st.chat_message("assistant"):
+                        st.markdown(message["content"])
+            
+            # User input
             if prompt := st.chat_input("Ask your coach anything..."):
                 st.session_state.chat_history.append({"role":"user","content":prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
                 
-                with st.spinner("Thinking..."):
+                # Get AI response
+                with st.spinner("Analyzing your question..."):
                     response = chat_with_coach(gemini_model, st.session_state.profile, st.session_state.chat_history, prompt)
                     if response:
                         st.session_state.chat_history.append({"role":"assistant","content":response})
