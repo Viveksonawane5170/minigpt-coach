@@ -72,138 +72,119 @@ def firebase_get_user_by_email(email):
         st.error(f"🚨 Login failed: {str(e)}")
     return None
 
-# Enhanced AI helper functions with technical details
+# Enhanced AI helper with detailed technical focus
 def generate_training_plan(model, user_profile, duration=4):
     try:
         if not model:
             raise ValueError("AI model not initialized")
         
-        # Precompute variables for cleaner f-string
+        # Extract user details
         sport = user_profile.get('sport', 'general fitness')
         experience = user_profile.get('experience', 'beginner')
         goals = user_profile.get('goals', 'improve fitness')
         equipment_list = user_profile.get('equipment', ['None'])
         equipment_str = ', '.join(equipment_list)
         injuries = user_profile.get('injuries', 'None')
+        available_days = user_profile.get('available_days', 3)
+        performance_goal = user_profile.get('performance_goal', '')
+        motivational_style = user_profile.get('motivational_style', 'technical')
+        plan_length = user_profile.get('plan_length', 'medium')
 
         prompt = f"""
-Generate a detailed {duration}-week training plan in JSON format for:
-Sport: {sport}
-Level: {experience}
-Goals: {goals}
-Available Equipment: {equipment_str}
-Injuries/Limitations: {injuries}
+Create a comprehensive {duration}-week {sport} training plan for a {experience} athlete with these goals: {goals}.
 
-Include these technical elements:
-- Periodization strategy
-- Exercise progressions
-- Sport-specific skill drills
-- Recovery protocols
-- Performance metrics tracking
-- Biomechanical cues for key exercises
+Structure the response EXACTLY as follows:
 
-IMPORTANT: 
-1. Return ONLY valid JSON with the specified structure
-2. DO NOT include any additional text before or after the JSON
-3. Complete all weeks specified in the duration
-4. Use double quotes for all JSON properties and values
+<plan>
+<div class='coaching-plan'>
+<div class='plan-header'>
+<h2>{sport.title()} Performance Blueprint</h2>
+<h3>For {experience.title()} Level Athletes</h3>
+</div>
 
-JSON Structure:
-{{
-  "trainingPlan": {{
-    "sport": "string",
-    "level": "string",
-    "goals": "string",
-    "equipment": "string",
-    "periodization": "string (e.g., linear, undulating)",
-    "technicalFocus": "string (sport-specific skills focus)",
-    "weeks": [
-      {{
-        "weekNumber": 1,
-        "phase": "string (e.g., base, build, peak)",
-        "focus": "string",
-        "days": [
-          {{
-            "day": "string",
-            "workoutType": "string",
-            "primaryExercises": [
-              {{
-                "name": "string",
-                "sets": "number",
-                "reps": "string",
-                "intensity": "string",
-                "technicalCues": "string (biomechanical tips)",
-                "progression": "string (how to advance)"
-              }}
-            ],
-            "skillDrills": [
-              {{
-                "name": "string",
-                "duration": "string",
-                "coachingPoints": "string (technical execution)"
-              }}
-            ],
-            "recoveryProtocol": "string"
-          }}
-        ],
-        "performanceMetrics": [
-          {{
-            "metric": "string",
-            "target": "string"
-          }}
-        ]
-      }}
-    ],
-    "technicalReference": [
-      {{
-        "topic": "string (e.g., biomechanics, tactics)",
-        "keyPoints": ["string"]
-      }}
-    ]
-  }}
-}}"""
+<div class='motivation-section'>
+<h4>Mindset Preparation</h4>
+<p><strong>Key Motivation:</strong> [2-3 sentence inspiring message]</p>
+<p><strong>Performance Focus:</strong> [Main area to concentrate on]</p>
+</div>
+
+<div class='weekly-plan'>
+<h4>{duration}-Week Training Structure</h4>
+[For each week block]
+<div class='week-section'>
+<h5>Week [X]: [Phase Name]</h5>
+<p><strong>Monday - Technique Development:</strong> [Detailed workout including warm-up, main sets, cool-down, duration, and specific focus]</p>
+<p><strong>Tuesday - Endurance Building:</strong> [Detailed workout including warm-up, main sets, cool-down, duration, and specific focus]</p>
+<p><strong>Wednesday - Active Recovery:</strong> [Detailed activities including mobility work, foam rolling, and light cardio]</p>
+<p><strong>Thursday - Strength & Power:</strong> [Detailed workout including warm-up, main sets, cool-down, duration, and specific focus]</p>
+<p><strong>Friday - Skill Refinement:</strong> [Detailed workout including warm-up, main sets, cool-down, duration, and specific focus]</p>
+<p><strong>Saturday - Long Duration Session:</strong> [Detailed workout including warm-up, main sets, cool-down, duration, and specific focus]</p>
+<p><strong>Sunday - Complete Rest:</strong> Mental recovery and preparation for next week</p>
+</div>
+</div>
+
+<div class='technical-section'>
+<h4>Technical Excellence</h4>
+<p><strong>Key Drill:</strong> [Specific drill with step-by-step instructions]</p>
+<p><strong>Game-Specific Techniques:</strong> [3-5 sport-specific technical tips for in-game situations]</p>
+<p><strong>Tactical Insights:</strong> [Positioning strategies and decision-making guidance]</p>
+<p><strong>Common Mistakes:</strong> [Frequent errors and how to correct them]</p>
+<p><strong>Equipment Optimization:</strong> [Specific guidance on gear selection and usage]</p>
+</div>
+
+<div class='recovery-section'>
+<h4>Optimal Recovery Protocol</h4>
+<p><strong>Active Recovery:</strong> [Detailed recommendations including specific exercises and durations]</p>
+<p><strong>Nutrition:</strong> [Specific meal timing, macro ratios, and hydration strategies]</p>
+<p><strong>Sleep Protocol:</strong> [Optimal sleep duration and quality enhancement techniques]</p>
+<p><strong>Injury Prevention:</strong> [Specific exercises and warning signs to monitor]</p>
+</div>
+
+<div class='progress-tracking'>
+<h4>Performance Metrics Tracking</h4>
+<p><strong>Weekly Assessments:</strong> [Specific metrics to track each week]</p>
+<p><strong>Key Performance Indicators:</strong> [Benchmarks for success at each phase]</p>
+</div>
+</div>
+</plan>
+
+Use a {motivational_style} tone and {plan_length} length.
+Include:
+- Exact durations, distances, weights, and intensities
+- Specific exercise names and descriptions
+- Progressive overload principles
+- Periodization details
+- Sport-specific technical cues
+- Skill development progression
+- Equipment optimization tips
+
+For the Technical Excellence section:
+- Provide 3-5 specific game techniques relevant to {sport}
+- Include tactical positioning advice for different game situations
+- List common mistakes and their corrections
+- Add sport-specific equipment tips
+
+Athlete Details:
+- Available Days: {available_days}/week
+- Equipment: {equipment_str}
+- Injuries/Limitations: {injuries}
+- Performance Goal: {performance_goal}
+"""
         
         response = model.generate_content(prompt)
         if not response or not getattr(response, "text", None):
             return None
             
-        # Clean the response text to ensure valid JSON
+        # Extract the plan content
         response_text = response.text.strip()
         
-        # Enhanced cleaning logic
-        if "```json" in response_text:
-            # Extract content between ```json and ```
-            start = response_text.find("```json") + len("```json")
-            end = response_text.rfind("```")
-            response_text = response_text[start:end].strip()
-        elif "```" in response_text:
-            # Extract content between first and last ```
-            start = response_text.find("```") + len("```")
-            end = response_text.rfind("```")
-            response_text = response_text[start:end].strip()
+        # Find the plan content between <plan> tags
+        start = response_text.find('<plan>') + len('<plan>')
+        end = response_text.find('</plan>')
         
-        # Handle trailing text after JSON
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
-        
-        if json_start != -1 and json_end != -1:
-            response_text = response_text[json_start:json_end]
-        
-        # Robust parsing that handles trailing text
-        try:
-            return json.loads(response_text)
-        except json.JSONDecodeError:
-            # Find the last valid closing brace
-            last_valid_brace = response_text.rfind('}')
-            if last_valid_brace != -1:
-                try:
-                    return json.loads(response_text[:last_valid_brace+1])
-                except json.JSONDecodeError as e:
-                    st.error(f"JSON parsing failed after cleanup: {e}")
-                    return None
-            else:
-                st.error("No valid JSON structure found in response")
-                return None
+        if start != -1 and end != -1:
+            return response_text[start:end].strip()
+        return response_text
         
     except Exception as e:
         st.error(f"AI error: {e}")
@@ -295,7 +276,11 @@ def main():
                 name = st.text_input("Full Name", key="reg_name")
                 sport = st.selectbox("Primary Sport",
                                    ["General Fitness", "Running", "Cycling", "Swimming",
-                                    "Weight Training", "Yoga", "Other"],
+                                    "Weight Training", "Basketball", "Soccer", "Tennis",
+                                    "Volleyball", "Cricket", "Baseball", "American Football",
+                                    "Rugby", "Badminton", "Table Tennis", "Golf", "Hockey",
+                                    "Ice Hockey", "Boxing", "Martial Arts", "Skiing", 
+                                    "Snowboarding", "Surfing", "Rowing", "Archery", "Fencing"],
                                    key="reg_sport")
             if st.button("Create Account", key="reg_btn"):
                 if not all([email, password, confirm, name]):
@@ -342,8 +327,17 @@ def main():
                 with col2:
                     sport = st.selectbox("Primary Sport",
                                        ["General Fitness", "Running", "Cycling", "Swimming",
-                                        "Weight Training", "Yoga", "Other"],
-                                       index=["General Fitness","Running","Cycling","Swimming","Weight Training","Yoga","Other"]
+                                        "Weight Training", "Basketball", "Soccer", "Tennis",
+                                        "Volleyball", "Cricket", "Baseball", "American Football",
+                                        "Rugby", "Badminton", "Table Tennis", "Golf", "Hockey",
+                                        "Ice Hockey", "Boxing", "Martial Arts", "Skiing", 
+                                        "Snowboarding", "Surfing", "Rowing", "Archery", "Fencing"],
+                                       index=["General Fitness", "Running", "Cycling", "Swimming",
+                                        "Weight Training", "Basketball", "Soccer", "Tennis",
+                                        "Volleyball", "Cricket", "Baseball", "American Football",
+                                        "Rugby", "Badminton", "Table Tennis", "Golf", "Hockey",
+                                        "Ice Hockey", "Boxing", "Martial Arts", "Skiing", 
+                                        "Snowboarding", "Surfing", "Rowing", "Archery", "Fencing"]
                                        .index(st.session_state.profile.get('sport','General Fitness')))
                     experience = st.selectbox("Experience Level", ["Beginner","Intermediate","Advanced","Professional"],
                                             index=["Beginner","Intermediate","Advanced","Professional"]
@@ -351,14 +345,35 @@ def main():
                     goals = st.text_area("Your Goals", value=st.session_state.profile.get('goals',''))
                     injuries = st.text_area("Injuries/Limitations", value=st.session_state.profile.get('injuries',''))
                 available_days = st.slider("Days available per week", 1, 7, st.session_state.profile.get('available_days', 3))
-                equipment = st.multiselect("Available Equipment", ["Gym Access", "Dumbbells", "Resistance Bands", "Yoga Mat", "Treadmill", "None"], 
+                performance_goal = st.text_area("Specific Performance Goal", 
+                                              value=st.session_state.profile.get('performance_goal', ''),
+                                              placeholder="e.g., Run 5k under 18 minutes, Increase vertical jump by 4 inches")
+                equipment = st.multiselect("Available Equipment", 
+                                          ["Gym Access", "Dumbbells", "Resistance Bands", "Yoga Mat", 
+                                           "Treadmill", "Pull-up Bar", "Kettlebells", "None"], 
                                           default=st.session_state.profile.get('equipment', []))
+                
+                # Coaching preferences
+                col_pref1, col_pref2 = st.columns(2)
+                with col_pref1:
+                    motivational_style = st.selectbox("Coaching Style",
+                                                    ["Encouraging", "Technical", "Tough Love", "Balanced"],
+                                                    index=["Encouraging", "Technical", "Tough Love", "Balanced"]
+                                                    .index(st.session_state.profile.get('motivational_style', 'Technical')))
+                with col_pref2:
+                    plan_length = st.selectbox("Plan Detail Level",
+                                             ["Short", "Medium", "Detailed"],
+                                             index=["Short", "Medium", "Detailed"]
+                                             .index(st.session_state.profile.get('plan_length', 'Medium')))
+                
                 if st.form_submit_button("💾 Save Profile"):
                     updated_profile = {
                         **st.session_state.profile,
                         "name": name, "age": age, "height": height, "weight": weight,
-                        "sport": sport, "experience": experience, "goals": goals, "injuries": injuries,
-                        "available_days": available_days, "equipment": equipment,
+                        "sport": sport, "experience": experience, "goals": goals, 
+                        "injuries": injuries, "available_days": available_days, 
+                        "equipment": equipment, "performance_goal": performance_goal,
+                        "motivational_style": motivational_style, "plan_length": plan_length,
                         "last_updated": datetime.now().isoformat()
                     }
                     if db is None:
@@ -382,17 +397,18 @@ def main():
                 with col1:
                     duration = st.slider("Plan Duration (weeks)", 1, 12, 4)
                 with col2:
-                    focus = st.selectbox("Primary Focus", ["Strength", "Endurance", "Weight Loss", "Muscle Gain", "Skill Development"])
+                    focus = st.selectbox("Primary Focus", ["Strength", "Endurance", "Weight Loss", 
+                                                         "Muscle Gain", "Skill Development"])
             
             if st.button("✨ Generate New Plan"):
                 with st.spinner("Creating your personalized plan..."):
-                    plan_data = generate_training_plan(gemini_model, st.session_state.profile, duration)
-                    if plan_data:
+                    plan_html = generate_training_plan(gemini_model, st.session_state.profile, duration)
+                    if plan_html:
                         try:
-                            st.session_state.generated_plan = plan_data
+                            st.session_state.generated_plan = plan_html
                             if db:
                                 db.collection('plans').document(st.session_state.user).collection('training_plans').add({
-                                    "plan": plan_data,
+                                    "plan": plan_html,
                                     "created_at": datetime.now().isoformat(),
                                     "duration": duration,
                                     "focus": focus
@@ -402,69 +418,18 @@ def main():
                             st.error(f"Failed to save plan: {e}")
             
             if st.session_state.generated_plan:
-                st.subheader("Your Current Plan")
-                plan = st.session_state.generated_plan.get('trainingPlan', {})
+                st.subheader("Your Performance Plan")
+                st.markdown("---")
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Sport:** {plan.get('sport', 'N/A')}")
-                    st.write(f"**Level:** {plan.get('level', 'N/A')}")
-                    st.write(f"**Goals:** {plan.get('goals', 'N/A')}")
-                with col2:
-                    st.write(f"**Equipment:** {plan.get('equipment', 'N/A')}")
-                    st.write(f"**Periodization:** {plan.get('periodization', 'N/A')}")
-                    st.write(f"**Technical Focus:** {plan.get('technicalFocus', 'N/A')}")
+                # Display the generated HTML plan
+                st.markdown(st.session_state.generated_plan, unsafe_allow_html=True)
                 
-                st.divider()
-                st.subheader("Training Structure")
-                
-                for week in plan.get('weeks', []):
-                    with st.expander(f"📆 Week {week.get('weekNumber')} - {week.get('phase')} Phase: {week.get('focus')}"):
-                        st.write(f"**Performance Metrics:**")
-                        for metric in week.get('performanceMetrics', []):
-                            st.write(f"- {metric.get('metric', 'N/A')}: {metric.get('target', 'N/A')}")
-                        
-                        st.divider()
-                        for day in week.get('days', []):
-                            st.subheader(f"🗓️ {day.get('day')}")
-                            st.write(f"**Workout Type:** {day.get('workoutType', 'N/A')}")
-                            
-                            col_ex, col_drills = st.columns(2)
-                            
-                            with col_ex:
-                                st.write("💪 **Primary Exercises:**")
-                                for exercise in day.get('primaryExercises', []):
-                                    st.write(f"#### {exercise.get('name', 'Exercise')}")
-                                    st.write(f"- Sets: {exercise.get('sets', 'N/A')}")
-                                    st.write(f"- Reps: {exercise.get('reps', 'N/A')}")
-                                    st.write(f"- Intensity: {exercise.get('intensity', 'N/A')}")
-                                    st.write(f"📝 *Technical Cues:* {exercise.get('technicalCues', 'N/A')}")
-                                    st.write(f"📈 *Progression:* {exercise.get('progression', 'N/A')}")
-                                    st.divider()
-                            
-                            with col_drills:
-                                st.write("🏃 **Skill Drills:**")
-                                for drill in day.get('skillDrills', []):
-                                    st.write(f"#### {drill.get('name', 'Drill')}")
-                                    st.write(f"- Duration: {drill.get('duration', 'N/A')}")
-                                    st.write(f"📝 *Coaching Points:* {drill.get('coachingPoints', 'N/A')}")
-                                    st.divider()
-                            
-                            st.write(f"🧘 **Recovery Protocol:** {day.get('recoveryProtocol', 'N/A')}")
-                            st.divider()
-                
-                st.divider()
-                st.subheader("Technical Reference Guide")
-                for ref in plan.get('technicalReference', []):
-                    with st.expander(f"📚 {ref.get('topic', 'Technical Topic')}"):
-                        for point in ref.get('keyPoints', []):
-                            st.write(f"- {point}")
-                
+                # Add download option
                 st.download_button(
                     "📥 Download Plan",
-                    data=json.dumps(st.session_state.generated_plan, indent=2),
-                    file_name=f"training_plan_{datetime.now().date()}.json",
-                    mime="application/json"
+                    data=st.session_state.generated_plan,
+                    file_name=f"{st.session_state.profile['sport']}_training_plan.html",
+                    mime="text/html"
                 )
 
         elif app_mode == "💬 AI Coach":
