@@ -126,7 +126,7 @@ Structure the response EXACTLY as follows:
 <div class='technical-section'>
 <h4>Technical Excellence</h4>
 <p><strong>Key Drill:</strong> [Specific drill with step-by-step instructions]</p>
-<p><strong>Game-Specific Techniques:</strong> [3-5 sport-specific technical tips for in-game situations]</p>
+<p><strong>Game-Specific Techniques:</strong> [5-6 sport-specific technical tips for in-game situations]</p>
 <p><strong>Tactical Insights:</strong> [Positioning strategies and decision-making guidance]</p>
 <p><strong>Common Mistakes:</strong> [Frequent errors and how to correct them]</p>
 <p><strong>Equipment Optimization:</strong> [Specific guidance on gear selection and usage]</p>
@@ -453,20 +453,46 @@ def main():
                 
                 # Get AI response
                 with st.spinner("Analyzing your question..."):
-                    response = chat_with_coach(gemini_model, st.session_state.profile, st.session_state.chat_history, prompt)
-                    if response:
-                        st.session_state.chat_history.append({"role":"assistant","content":response})
-                        if db:
-                            try:
-                                db.collection('chats').document(st.session_state.user).collection('messages').add({
-                                    "message": prompt, 
-                                    "response": response, 
-                                    "timestamp": datetime.now().isoformat()
-                                })
-                            except Exception as e:
-                                st.warning(f"Failed to persist chat: {e}")
-                        with st.chat_message("assistant"):
-                            st.markdown(response)
+                    # Handle greetings and common phrases conversationally
+                    prompt_lower = prompt.strip().lower()
+                    if prompt_lower in ["hi", "hello", "hey"]:
+                        response = "Hello! I'm your AI Coach. How can I assist you with your training today?"
+                    elif "thank" in prompt_lower:
+                        response = "You're welcome! Always here to help with your athletic development."
+                    elif "plan" in prompt_lower and ("training" in prompt_lower or "workout" in prompt_lower):
+                        # Generate training plan through chat
+                        with st.spinner("Creating your personalized plan..."):
+                            plan_html = generate_training_plan(
+                                gemini_model,
+                                st.session_state.profile,
+                                st.session_state.profile.get('plan_duration', 4)
+                            )
+                            if plan_html:
+                                response = (
+                                    "Here's your personalized training plan:\n\n" +
+                                    plan_html +
+                                    "\n\nYou can also find this in the '📅 Training Plan' tab."
+                                )
+                                st.session_state.generated_plan = plan_html
+                            else:
+                                response = "I couldn't generate a plan right now. Please try again later."
+                    else:
+                        # Handle other technical questions
+                        response = chat_with_coach(gemini_model, st.session_state.profile, st.session_state.chat_history, prompt)
+                    
+                    # Store and display response
+                    st.session_state.chat_history.append({"role":"assistant","content":response})
+                    if db:
+                        try:
+                            db.collection('chats').document(st.session_state.user).collection('messages').add({
+                                "message": prompt, 
+                                "response": response, 
+                                "timestamp": datetime.now().isoformat()
+                            })
+                        except Exception as e:
+                            st.warning(f"Failed to persist chat: {e}")
+                    with st.chat_message("assistant"):
+                        st.markdown(response)
 
 if __name__ == "__main__":
     main()
