@@ -450,6 +450,9 @@ def main():
                 st.session_state.chat_history.append({"role":"user","content":prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
+
+
+            
                 
                 # Get AI response
                 with st.spinner("Analyzing your question..."):
@@ -493,6 +496,9 @@ def main():
                             st.warning(f"Failed to persist chat: {e}")
                     with st.chat_message("assistant"):
                         st.markdown(response)
+
+
+                
 
 if __name__ == "__main__":
     main()
